@@ -92,6 +92,25 @@
     "@aws-cdk/s3-notifications:addS3TrustKeyPolicyForSnsSubscriptions": true,
     "@aws-cdk/aws-ec2:requirePrivateSubnetsForEgressOnlyInternetGateway": true,
     "@aws-cdk/aws-s3:publicAccessBlockedByDefault": true,
-    "@aws-cdk/aws-lambda:useCdkManagedLogGroup": true
+    "@aws-cdk/aws-lambda:useCdkManagedLogGroup": true,
+    "dev": {
+      "stage": "dev",
+      "env": {
+        "account": "872515253712",
+        "region": "us-west-1"
+      },
+      "stackName": "Acsd2PStack-Dev",
+      "description": "Development environment - Safe to deploy and test"
+    },
+    "prod": {
+      "stage": "prod",
+      "env": {
+        "account": "872515253712",
+        "region": "us-east-2"
+      },
+      "stackName": "Acsd2PStack-Prod",
+      "description": "PRODUCTION ENVIRONMENT - DO NOT DEPLOY WITHOUT EXPLICIT APPROVAL",
+      "warning": "⚠️  WARNING: This is the PRODUCTION environment in us-east-2. Deploying here will affect live users and data. ⚠️"
+    }
   }
 }

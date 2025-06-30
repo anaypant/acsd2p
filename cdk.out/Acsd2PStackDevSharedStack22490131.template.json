@@ -1,0 +1,378 @@
+{
+ "Description": "Shared resources for dev environment",
+ "Resources": {
+  "ACSUserPool1830B1FD": {
+   "Type": "AWS::Cognito::UserPool",
+   "Properties": {
+    "AccountRecoverySetting": {
+     "RecoveryMechanisms": [
+      {
+       "Name": "verified_email",
+       "Priority": 1
+      }
+     ]
+    },
+    "AdminCreateUserConfig": {
+     "AllowAdminCreateUserOnly": false
+    },
+    "AutoVerifiedAttributes": [
+     "email"
+    ],
+    "EmailVerificationMessage": "The verification code to your new account is {####}",
+    "EmailVerificationSubject": "Verify your new account",
+    "Policies": {
+     "PasswordPolicy": {
+      "MinimumLength": 8,
+      "RequireLowercase": true,
+      "RequireNumbers": true,
+      "RequireSymbols": true,
+      "RequireUppercase": true
+     }
+    },
+    "Schema": [
+     {
+      "Mutable": true,
+      "Name": "email",
+      "Required": true
+     }
+    ],
+    "SmsVerificationMessage": "The verification code to your new account is {####}",
+    "UserPoolName": "dev-ACSUserPool",
+    "UsernameAttributes": [
+     "email"
+    ],
+    "VerificationMessageTemplate": {
+     "DefaultEmailOption": "CONFIRM_WITH_CODE",
+     "EmailMessage": "The verification code to your new account is {####}",
+     "EmailSubject": "Verify your new account",
+     "SmsMessage": "The verification code to your new account is {####}"
+    }
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "Acsd2PStack-Dev/SharedStack/ACSUserPool/Resource"
+   }
+  },
+  "ACSUserPoolClientEF8B1F7F": {
+   "Type": "AWS::Cognito::UserPoolClient",
+   "Properties": {
+    "AllowedOAuthFlows": [
+     "implicit",
+     "code"
+    ],
+    "AllowedOAuthFlowsUserPoolClient": true,
+    "AllowedOAuthScopes": [
+     "email",
+     "openid",
+     "profile"
+    ],
+    "CallbackURLs": [
+     "http://localhost:3000/callback"
+    ],
+    "ClientName": "dev-ACSUserPoolClient",
+    "ExplicitAuthFlows": [
+     "ALLOW_USER_PASSWORD_AUTH",
+     "ALLOW_ADMIN_USER_PASSWORD_AUTH",
+     "ALLOW_USER_SRP_AUTH",
+     "ALLOW_REFRESH_TOKEN_AUTH"
+    ],
+    "GenerateSecret": true,
+    "SupportedIdentityProviders": [
+     "COGNITO"
+    ],
+    "UserPoolId": {
+     "Ref": "ACSUserPool1830B1FD"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "Acsd2PStack-Dev/SharedStack/ACSUserPoolClient/Resource"
+   }
+  },
+  "ACSUserPoolClientDescribeCognitoUserPoolClient105B7A62": {
+   "Type": "Custom::DescribeCognitoUserPoolClient",
+   "Properties": {
+    "ServiceToken": {
+     "Fn::GetAtt": [
+      "AWS679f53fac002430cb0da5b7982bd22872D164C4C",
+      "Arn"
+     ]
+    },
+    "Create": {
+     "Fn::Join": [
+      "",
+      [
+       "{\"region\":\"us-west-1\",\"service\":\"CognitoIdentityServiceProvider\",\"action\":\"describeUserPoolClient\",\"parameters\":{\"UserPoolId\":\"",
+       {
+        "Ref": "ACSUserPool1830B1FD"
+       },
+       "\",\"ClientId\":\"",
+       {
+        "Ref": "ACSUserPoolClientEF8B1F7F"
+       },
+       "\"},\"physicalResourceId\":{\"id\":\"",
+       {
+        "Ref": "ACSUserPoolClientEF8B1F7F"
+       },
+       "\"},\"logApiResponseData\":false}"
+      ]
+     ]
+    },
+    "Update": {
+     "Fn::Join": [
+      "",
+      [
+       "{\"region\":\"us-west-1\",\"service\":\"CognitoIdentityServiceProvider\",\"action\":\"describeUserPoolClient\",\"parameters\":{\"UserPoolId\":\"",
+       {
+        "Ref": "ACSUserPool1830B1FD"
+       },
+       "\",\"ClientId\":\"",
+       {
+        "Ref": "ACSUserPoolClientEF8B1F7F"
+       },
+       "\"},\"physicalResourceId\":{\"id\":\"",
+       {
+        "Ref": "ACSUserPoolClientEF8B1F7F"
+       },
+       "\"},\"logApiResponseData\":false}"
+      ]
+     ]
+    },
+    "InstallLatestAwsSdk": false
+   },
+   "DependsOn": [
+    "ACSUserPoolClientDescribeCognitoUserPoolClientCustomResourcePolicy849461BC"
+   ],
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "Acsd2PStack-Dev/SharedStack/ACSUserPoolClient/DescribeCognitoUserPoolClient/Resource/Default"
+   }
+  },
+  "ACSUserPoolClientDescribeCognitoUserPoolClientCustomResourcePolicy849461BC": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "cognito-idp:DescribeUserPoolClient",
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "ACSUserPool1830B1FD",
+         "Arn"
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "ACSUserPoolClientDescribeCognitoUserPoolClientCustomResourcePolicy849461BC",
+    "Roles": [
+     {
+      "Ref": "AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "Acsd2PStack-Dev/SharedStack/ACSUserPoolClient/DescribeCognitoUserPoolClient/CustomResourcePolicy/Resource"
+   }
+  },
+  "AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "Acsd2PStack-Dev/SharedStack/AWS679f53fac002430cb0da5b7982bd2287/ServiceRole/Resource"
+   }
+  },
+  "AWS679f53fac002430cb0da5b7982bd22872D164C4C": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-872515253712-us-west-1",
+     "S3Key": "c099eb4e32cbf1c3da9c45a3b280efe2bed38d27d74aa72702b67d86d1b52354.zip"
+    },
+    "Handler": "index.handler",
+    "Role": {
+     "Fn::GetAtt": [
+      "AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs22.x",
+    "Timeout": 120
+   },
+   "DependsOn": [
+    "AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "Acsd2PStack-Dev/SharedStack/AWS679f53fac002430cb0da5b7982bd2287/Resource",
+    "aws:asset:path": "asset.c099eb4e32cbf1c3da9c45a3b280efe2bed38d27d74aa72702b67d86d1b52354",
+    "aws:asset:is-bundled": false,
+    "aws:asset:property": "Code"
+   }
+  },
+  "AWS679f53fac002430cb0da5b7982bd2287LogGroup449FB7C2": {
+   "Type": "AWS::Logs::LogGroup",
+   "Properties": {
+    "LogGroupName": {
+     "Fn::Join": [
+      "",
+      [
+       "/aws/lambda/",
+       {
+        "Ref": "AWS679f53fac002430cb0da5b7982bd22872D164C4C"
+       }
+      ]
+     ]
+    },
+    "RetentionInDays": 731
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "Acsd2PStack-Dev/SharedStack/AWS679f53fac002430cb0da5b7982bd2287/LogGroup/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/81UTU/jMBD9LfiITBbKrbfSXRASu4saeqoqNLWnqak/sva4VYny31dOnG6L4L6nOG9e/N68sTMqRtc3xfUF7MOVkNsrrVZFUxKILYd9eG2Eq6wiVzTzgP7ZOb1oWMzLX2CQjdkl4yygXpeqsvP6h4WVRsnG5CNyFlRlH+1EKwgY2LhhaEDpvtpyFgisBC8nRF6tInWclrMaQtg7L5+dVuKQvjPKPqGtaJMVPf6JyuOT26MXEHAQzPi8rj/Fv6tKUfgAlgezcjocXYEQLlqaoXA79Ac2HiWqcTvQgyHmkUBZ1i75dG2HcPiwmGqFlk6yyq7jWf0kwAoteiAsUXikwR9E2txrt++SA2lUr5TDGVjxC6z09bElN4kpuoatj9tF2jiv3oGUs1Mn8cGDPSorU2slFH0opJEJV6cxdbYFaL0CsZ173UPteSB9ny3XYFYSiqZUttJIzt5HK5Jwiigqmbfrac/R1y4MyRg0zh9K9T4ApAy6SMM5cHooaFc9eBfr/LrOEicp72rxb1XGlUU6duLkwNqAlRr9IBBtUuy742kM8icSSCBg40WipGCWn5fYJVu2S37S7X/VTjerwVzLFZii6U/4okl3k9CgzXvmBssTdNG0fd9EIDYvbtaZX3RNfwF3ir0ET/iiYRBCNCjvumtee2WFqkFP+juYXfec9MGk85odMQMWKux/Ewo7S2fYYeIz98TRo9XK4nCTT3yl/Vsebou7KLZIdxBwseTyYME4uSpe0p8tg+H2FUJACsUkPbh2VSiapzyyRXOc3nFcvcTAaFsuYiBnXj0GF73AUEz2Ydphswzx89fhRHWnqvN75K3t70h1JH7KXfLOW0lQKVu13DqJxVv4thtdFzc3xc3FW1DqKh+IYtY//wJQ5vKWEQYAAA=="
+   },
+   "Metadata": {
+    "aws:cdk:path": "Acsd2PStack-Dev/SharedStack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "UserPoolId": {
+   "Description": "Cognito User Pool ID",
+   "Value": {
+    "Ref": "ACSUserPool1830B1FD"
+   },
+   "Export": {
+    "Name": "Acsd2PStackDevSharedStack22490131-UserPoolId"
+   }
+  },
+  "UserPoolClientId": {
+   "Description": "Cognito User Pool Client ID",
+   "Value": {
+    "Ref": "ACSUserPoolClientEF8B1F7F"
+   },
+   "Export": {
+    "Name": "Acsd2PStackDevSharedStack22490131-UserPoolClientId"
+   }
+  },
+  "UserPoolClientSecret": {
+   "Description": "Cognito User Pool Client Secret",
+   "Value": {
+    "Fn::GetAtt": [
+     "ACSUserPoolClientDescribeCognitoUserPoolClient105B7A62",
+     "UserPoolClient.ClientSecret"
+    ]
+   },
+   "Export": {
+    "Name": "Acsd2PStackDevSharedStack22490131-UserPoolClientSecret"
+   }
+  },
+  "ExportsOutputFnGetAttACSUserPool1830B1FDArnC8D48E5F": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ACSUserPool1830B1FD",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "Acsd2PStackDevSharedStack22490131:ExportsOutputFnGetAttACSUserPool1830B1FDArnC8D48E5F"
+   }
+  },
+  "ExportsOutputRefACSUserPool1830B1FD32BEED4E": {
+   "Value": {
+    "Ref": "ACSUserPool1830B1FD"
+   },
+   "Export": {
+    "Name": "Acsd2PStackDevSharedStack22490131:ExportsOutputRefACSUserPool1830B1FD32BEED4E"
+   }
+  },
+  "ExportsOutputRefACSUserPoolClientEF8B1F7F0CEFF34F": {
+   "Value": {
+    "Ref": "ACSUserPoolClientEF8B1F7F"
+   },
+   "Export": {
+    "Name": "Acsd2PStackDevSharedStack22490131:ExportsOutputRefACSUserPoolClientEF8B1F7F0CEFF34F"
+   }
+  },
+  "ExportsOutputFnGetAttACSUserPoolClientDescribeCognitoUserPoolClient105B7A62UserPoolClientClientSecret467ACD6E": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ACSUserPoolClientDescribeCognitoUserPoolClient105B7A62",
+     "UserPoolClient.ClientSecret"
+    ]
+   },
+   "Export": {
+    "Name": "Acsd2PStackDevSharedStack22490131:ExportsOutputFnGetAttACSUserPoolClientDescribeCognitoUserPoolClient105B7A62UserPoolClientClientSecret467ACD6E"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

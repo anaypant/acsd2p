@@ -3,6 +3,7 @@ import boto3
 from typing import Dict, Any
 from botocore.exceptions import ClientError
 from config import logger, AWS_REGION
+import os
 
 lambda_client = boto3.client("lambda", region_name=AWS_REGION)
 
@@ -77,13 +78,13 @@ def invoke_lambda(function_name, payload, invocation_type="RequestResponse"):
         raise LambdaError(500, f"An unexpected error occurred invoking {function_name}: {e}")
 
 def parse_event(event):
-    response = invoke_lambda('ParseEvent', event)
+    response = invoke_lambda(os.environ.get("PARSE_EVENT_FUNCTION_NAME", "ParseEvent"), event)
     return json.loads(response.get('body', '{}'))
 
 def authorize(user_id, session_id):
     payload = {'user_id': user_id, 'session_id': session_id}
     try:
-        response = invoke_lambda('Authorize', payload)
+        response = invoke_lambda(os.environ.get("AUTHORIZE_FUNCTION_NAME", "Authorize"), payload)
         body = json.loads(response.get('body', '{}'))
         if not body.get('authorized'):
              raise AuthorizationError(body.get('message', 'Unauthorized'))

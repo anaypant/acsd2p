@@ -8,7 +8,30 @@
     "build": "tsc",
     "watch": "tsc -w",
     "test": "jest",
-    "cdk": "cdk"
+    "cdk": "cdk",
+    "deploy:dev": "cdk deploy --context env=dev",
+    "deploy:prod": "cdk deploy --context env=prod",
+    "deploy:dev:existing-cognito": "cdk deploy --context env=dev --context existingUserPoolId=us-west-1_example123 --context existingUserPoolClientId=exampleclient123",
+    "deploy:prod:existing-cognito": "cdk deploy --context env=prod --context existingUserPoolId=us-west-1_example123 --context existingUserPoolClientId=exampleclient123",
+    "destroy:dev": "cdk destroy --context env=dev",
+    "destroy:prod": "cdk destroy --context env=prod",
+    "synth:dev": "cdk synth --context env=dev",
+    "synth:prod": "cdk synth --context env=prod",
+    "diff:dev": "cdk diff --context env=dev",
+    "diff:prod": "cdk diff --context env=prod",
+    "deploy:enhanced:dev": "node scripts/enhanced-deploy.js",
+    "deploy:enhanced:prod": "ENVIRONMENT=prod node scripts/enhanced-deploy.js",
+    "discover:resources:dev": "node scripts/discover-resources.js",
+    "discover:resources:prod": "ENVIRONMENT=prod node scripts/discover-resources.js",
+    "check:resources:dev": "ENVIRONMENT=dev node scripts/discover-resources.js",
+    "check:resources:prod": "ENVIRONMENT=prod node scripts/discover-resources.js",
+    "smart:deploy:dev": "node scripts/smart-deploy.js",
+    "smart:deploy:prod": "ENVIRONMENT=prod node scripts/smart-deploy.js",
+    "smart:check": "node scripts/smart-deploy.js --check-only",
+    "smart:reset": "rm -f .deployment-hashes.json",
+    "smart:example": "node scripts/example-workflow.js",
+    "deploy": "npm run smart:deploy:dev",
+    "deploy:prod": "npm run smart:deploy:prod"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
@@ -25,6 +48,8 @@
     "@aws-cdk/aws-dynamodb": "^1.203.0",
     "@aws-cdk/aws-lambda": "^1.203.0",
     "aws-cdk-lib": "2.201.0",
-    "constructs": "^10.0.0"
+    "aws-sdk": "^2.1692.0",
+    "constructs": "^10.0.0",
+    "dotenv": "^17.0.0"
   }
 }
