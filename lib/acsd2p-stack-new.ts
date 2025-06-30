@@ -6,8 +6,6 @@ import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
-import * as path from 'path';
-import * as fs from 'fs';
 import { Construct } from 'constructs';
 import { Create } from './create';
 import { getResourceName } from './resource-namer';
@@ -19,12 +17,12 @@ interface Acsd2PStackProps extends cdk.StackProps {
   existingUserPoolClientSecret?: string;
 }
 
-export class Acsd2PStack extends cdk.Stack {
+export class Acsd2PStackNew extends cdk.Stack {
   public readonly userPool: cognito.IUserPool;
   public readonly userPoolClient: cognito.IUserPoolClient;
   public readonly dynamoDBTables: { [key: string]: dynamodb.ITable } = {};
   public readonly s3Buckets: { [key: string]: s3.IBucket } = {};
-  public emailProcessQueue!: sqs.IQueue;
+  public readonly emailProcessQueue: sqs.IQueue;
   public readonly lambdaFunctions: { [key: string]: lambda.Function } = {};
   public readonly api: apigateway.RestApi;
   private create: Create;
@@ -68,12 +66,9 @@ export class Acsd2PStack extends cdk.Stack {
 
     // 4. Create SQS Queues
     const emailProcessQueue = this.setupSQSQueues();
-    
-    // Assign emailProcessQueue to class property before creating lambda functions
-    this.emailProcessQueue = emailProcessQueue;
 
-    // 5. Create Lambda Functions (pass cognito resources)
-    this.setupLambdaFunctions(cognitoResources);
+    // 5. Create Lambda Functions
+    this.setupLambdaFunctions();
 
     // 6. Create API Gateway
     const api = this.setupAPIGateway();
@@ -82,7 +77,7 @@ export class Acsd2PStack extends cdk.Stack {
     this.createApiRoutes(api);
 
     // 8. Create Stack Outputs
-    this.createStackOutputs(cognitoResources, api);
+    this.createStackOutputs();
 
     return {
       userPool: cognitoResources.userPool,
@@ -199,6 +194,7 @@ export class Acsd2PStack extends cdk.Stack {
   private setupSQSQueues(): sqs.IQueue {
     console.log('📬 Creating SQS Queues...');
     const stage = this.node.tryGetContext('env')?.stage || 'dev';
+    
     return new sqs.Queue(this, 'EmailProcessQueue', {
       queueName: getResourceName(stage, 'EmailProcessQueue'),
       visibilityTimeout: cdk.Duration.minutes(5),
@@ -207,40 +203,41 @@ export class Acsd2PStack extends cdk.Stack {
     });
   }
 
-  private setupLambdaFunctions(cognitoResources: {
-    userPool: cognito.IUserPool;
-    userPoolClient: cognito.IUserPoolClient;
-  }): void {
+  private setupLambdaFunctions(): void {
     console.log('⚡ Creating Lambda Functions...');
     
-    const lambdaDirs = fs.readdirSync(path.join(__dirname, '../lambdas'))
-      .filter(dir => fs.statSync(path.join(__dirname, '../lambdas', dir)).isDirectory());
+    // Example lambda functions - you can add more as needed
+    const lambdaConfigs = [
+      'LoginUser',
+      'Authorize',
+      'CreateNewSession',
+      'DBSelect',
+      'DBUpdate',
+      'Send-Email',
+      'GenerateEV',
+    ];
 
     const stage = this.node.tryGetContext('env')?.stage || 'dev';
-    lambdaDirs.forEach(dirName => {
-      const runtime = this.detectRuntime(dirName);
-      const handler = this.getHandler(dirName, runtime);
-      
-      const fn = new lambda.Function(this, `${dirName}Function`, {
-        functionName: getResourceName(stage, dirName),
-        runtime: runtime,
-        handler: handler,
-        code: lambda.Code.fromAsset(path.join(__dirname, `../lambdas/${dirName}`)),
+    lambdaConfigs.forEach(lambdaName => {
+      this.lambdaFunctions[lambdaName] = new lambda.Function(this, `${lambdaName}Function`, {
+        functionName: getResourceName(stage, lambdaName),
+        runtime: this.detectRuntime(lambdaName),
+        handler: this.getHandler(lambdaName),
+        code: lambda.Code.fromAsset(`./lambdas/${lambdaName}`),
         memorySize: 256,
         timeout: cdk.Duration.minutes(1),
-        environment: this.getSharedEnvironment(dirName, cognitoResources),
+        environment: this.getSharedEnvironment(lambdaName),
       });
 
       // Grant permissions
-      this.grantPermissions(fn, cognitoResources);
-
-      this.lambdaFunctions[dirName] = fn;
+      this.grantPermissions(this.lambdaFunctions[lambdaName]);
     });
   }
 
   private setupAPIGateway(): apigateway.RestApi {
     console.log('🌐 Creating API Gateway...');
     const stage = this.node.tryGetContext('env')?.stage || 'dev';
+    
     return new apigateway.RestApi(this, 'ApiGateway', {
       restApiName: getResourceName(stage, 'ApiGateway'),
       description: `ACS API Gateway for ${stage} environment`,
@@ -259,32 +256,10 @@ export class Acsd2PStack extends cdk.Stack {
       { path: ['api', 'auth', 'login'], method: 'POST', lambda: 'LoginUser' },
       { path: ['api', 'auth', 'authorize'], method: 'POST', lambda: 'Authorize' },
       { path: ['api', 'auth', 'create-session'], method: 'POST', lambda: 'CreateNewSession' },
-      { path: ['api', 'users', 'delete'], method: 'DELETE', lambda: 'DeleteUserSupabase' },
-      { path: ['api', 'users', 'process'], method: 'POST', lambda: 'ProcessNewUserSupabase' },
-      { path: ['api', 'users', 'conversations'], method: 'GET', lambda: 'GetUserConversations' },
       { path: ['api', 'db', 'select'], method: 'POST', lambda: 'DBSelect' },
-      { path: ['api', 'db', 'batch-select'], method: 'POST', lambda: 'DBBatchSelect' },
       { path: ['api', 'db', 'update'], method: 'POST', lambda: 'DBUpdate' },
-      { path: ['api', 'db', 'delete'], method: 'POST', lambda: 'DBDelete' },
-      { path: ['api', 'email', 'generate'], method: 'POST', lambda: 'GenerateEmail' },
       { path: ['api', 'email', 'send'], method: 'POST', lambda: 'Send-Email' },
-      { path: ['api', 'email', 'process-queue'], method: 'POST', lambda: 'Process-SQS-Queued-Emails' },
       { path: ['api', 'ev', 'generate'], method: 'POST', lambda: 'GenerateEV' },
-      { path: ['api', 'llm', 'response'], method: 'POST', lambda: 'LCPLlmResponse' },
-      { path: ['api', 'threads', 'get-all'], method: 'GET', lambda: 'getThreadAttrs' },
-      { path: ['api', 'threads', 'retrieve'], method: 'POST', lambda: 'Retrieve-Thread-Information' },
-      { path: ['api', 'organizations', 'crud'], method: 'POST', lambda: 'Organizations-Crud' },
-      { path: ['api', 'organizations', 'members'], method: 'POST', lambda: 'Organizations-Members' },
-      { path: ['api', 'ses', 'create-identity'], method: 'POST', lambda: 'Create-SES-Identity' },
-      { path: ['api', 'ses', 'create-dkim'], method: 'POST', lambda: 'Create-SES-Dkim-Records' },
-      { path: ['api', 'ses', 'check-domain'], method: 'POST', lambda: 'Check-Domain-Status' },
-      { path: ['api', 'ses', 'verify-domain'], method: 'POST', lambda: 'verifyNewDomainValid' },
-      { path: ['api', 'rate-limit', 'ai'], method: 'POST', lambda: 'RateLimitAI' },
-      { path: ['api', 'rate-limit', 'aws'], method: 'POST', lambda: 'RateLimitAWS' },
-      { path: ['api', 'cors', 'get'], method: 'GET', lambda: 'Get-Cors' },
-      { path: ['api', 'authorizer'], method: 'POST', lambda: 'API-Authorizer' },
-      { path: ['api', 'parse-event'], method: 'POST', lambda: 'ParseEvent' },
-      { path: ['api', 'test-scheduler'], method: 'POST', lambda: 'Test-Scheduler' },
     ];
 
     routeMap.forEach(route => {
@@ -301,17 +276,14 @@ export class Acsd2PStack extends cdk.Stack {
     });
   }
 
-  private grantPermissions(lambdaFunction: lambda.Function, cognitoResources: {
-    userPool: cognito.IUserPool;
-    userPoolClient: cognito.IUserPoolClient;
-  }): void {
+  private grantPermissions(lambdaFunction: lambda.Function): void {
     // Grant Cognito permissions
-    cognitoResources.userPool.grant(lambdaFunction, 'cognito-idp:AdminCreateUser');
-    cognitoResources.userPool.grant(lambdaFunction, 'cognito-idp:AdminDeleteUser');
-    cognitoResources.userPool.grant(lambdaFunction, 'cognito-idp:AdminGetUser');
-    cognitoResources.userPool.grant(lambdaFunction, 'cognito-idp:AdminSetUserPassword');
-    cognitoResources.userPool.grant(lambdaFunction, 'cognito-idp:ListUsers');
-    cognitoResources.userPool.grant(lambdaFunction, 'cognito-idp:InitiateAuth');
+    this.userPool.grant(lambdaFunction, 'cognito-idp:AdminCreateUser');
+    this.userPool.grant(lambdaFunction, 'cognito-idp:AdminDeleteUser');
+    this.userPool.grant(lambdaFunction, 'cognito-idp:AdminGetUser');
+    this.userPool.grant(lambdaFunction, 'cognito-idp:AdminSetUserPassword');
+    this.userPool.grant(lambdaFunction, 'cognito-idp:ListUsers');
+    this.userPool.grant(lambdaFunction, 'cognito-idp:InitiateAuth');
 
     // Grant DynamoDB permissions
     Object.values(this.dynamoDBTables).forEach(table => {
@@ -328,10 +300,7 @@ export class Acsd2PStack extends cdk.Stack {
     });
   }
 
-  private getSharedEnvironment(functionName: string, cognitoResources: {
-    userPool: cognito.IUserPool;
-    userPoolClient: cognito.IUserPoolClient;
-  }): { [key: string]: string } {
+  private getSharedEnvironment(functionName: string): { [key: string]: string } {
     const stage = this.node.tryGetContext('env')?.stage || 'dev';
     
     return {
@@ -347,9 +316,9 @@ export class Acsd2PStack extends cdk.Stack {
       SCHEDULER_ROLE_ARN: "arn:aws:iam::872515253712:role/SQS-SES-Handler",
       TAI_KEY: "2e1a1e910693ae18c09ad0585a7645e0f4595e90ec35bb366b6f5520221b6ca7",
       BEDROCK_MODEL_ARN: "arn:aws:bedrock:us-west-2::model/amazon.nova-premier-v1:0",
-      COGNITO_USER_POOL_ID: cognitoResources.userPool.userPoolId,
-      COGNITO_CLIENT_ID: cognitoResources.userPoolClient.userPoolClientId,
-      COGNITO_CLIENT_SECRET: cognitoResources.userPoolClient.userPoolClientSecret?.unsafeUnwrap() || '',
+      COGNITO_USER_POOL_ID: this.userPool.userPoolId,
+      COGNITO_CLIENT_ID: this.userPoolClient.userPoolClientId,
+      COGNITO_CLIENT_SECRET: this.userPoolClient.userPoolClientSecret?.unsafeUnwrap() || '',
       RATE_LIMIT_AI: "100",
       RATE_LIMIT_AWS: "1000",
       RECAPTCHA_SECRET_KEY: "6LcdgD8rAAAAAMBJ_aCebuY5e_F-IfZjL-oAs9lo",
@@ -370,26 +339,23 @@ export class Acsd2PStack extends cdk.Stack {
     };
   }
 
-  private createStackOutputs(cognitoResources: {
-    userPool: cognito.IUserPool;
-    userPoolClient: cognito.IUserPoolClient;
-  }, api: apigateway.RestApi): void {
+  private createStackOutputs(): void {
     const stage = this.node.tryGetContext('env')?.stage || 'dev';
     
     new cdk.CfnOutput(this, 'ApiGatewayUrl', {
-      value: api.url,
+      value: this.api.url,
       description: 'API Gateway URL',
       exportName: getResourceName(stage, 'ApiGatewayUrl'),
     });
 
     new cdk.CfnOutput(this, 'UserPoolId', {
-      value: cognitoResources.userPool.userPoolId,
+      value: this.userPool.userPoolId,
       description: 'Cognito User Pool ID',
       exportName: getResourceName(stage, 'UserPoolId'),
     });
 
     new cdk.CfnOutput(this, 'UserPoolClientId', {
-      value: cognitoResources.userPoolClient.userPoolClientId,
+      value: this.userPoolClient.userPoolClientId,
       description: 'Cognito User Pool Client ID',
       exportName: getResourceName(stage, 'UserPoolClientId'),
     });
@@ -419,6 +385,8 @@ export class Acsd2PStack extends cdk.Stack {
 
   // Helper methods for auto-detection
   private detectRuntime(lambdaDir: string): lambda.Runtime {
+    const fs = require('fs');
+    const path = require('path');
     const lambdaPath = path.join(__dirname, `../lambdas/${lambdaDir}`);
     
     if (!fs.existsSync(lambdaPath)) {
@@ -428,11 +396,11 @@ export class Acsd2PStack extends cdk.Stack {
     
     const files = fs.readdirSync(lambdaPath);
     
-    const hasPythonFiles = files.some(file => 
+    const hasPythonFiles = files.some((file: string) => 
       file.endsWith('.py') || file === 'requirements.txt'
     );
     
-    const hasNodeFiles = files.some(file => 
+    const hasNodeFiles = files.some((file: string) => 
       file.endsWith('.js') || file.endsWith('.mjs') || file === 'package.json'
     );
     
@@ -445,39 +413,36 @@ export class Acsd2PStack extends cdk.Stack {
     }
   }
 
-  private getHandler(lambdaDir: string, runtime: lambda.Runtime): string {
+  private getHandler(lambdaDir: string): string {
+    const fs = require('fs');
+    const path = require('path');
     const lambdaPath = path.join(__dirname, `../lambdas/${lambdaDir}`);
     
     if (!fs.existsSync(lambdaPath)) {
-      return runtime === lambda.Runtime.PYTHON_3_11 ? 'lambda_function.handler' : 'index.handler';
+      return 'index.handler';
     }
     
     const files = fs.readdirSync(lambdaPath);
     
-    if (runtime === lambda.Runtime.PYTHON_3_11) {
-      if (files.includes('lambda_function.py')) {
-        return 'lambda_function.handler';
-      } else if (files.includes('index.py')) {
-        return 'index.handler';
-      } else {
-        const pyFile = files.find(file => file.endsWith('.py'));
-        if (pyFile) {
-          return `${pyFile.replace('.py', '')}.handler`;
-        }
-      }
+    if (files.includes('lambda_function.py')) {
+      return 'lambda_function.handler';
+    } else if (files.includes('index.py')) {
+      return 'index.handler';
+    } else if (files.includes('index.js')) {
+      return 'index.handler';
+    } else if (files.includes('index.mjs')) {
+      return 'index.handler';
     } else {
-      if (files.includes('index.js')) {
-        return 'index.handler';
-      } else if (files.includes('index.mjs')) {
-        return 'index.handler';
-      } else {
-        const jsFile = files.find(file => file.endsWith('.js') || file.endsWith('.mjs'));
-        if (jsFile) {
-          return `${jsFile.replace('.js', '').replace('.mjs', '')}.handler`;
-        }
+      const pyFile = files.find((file: string) => file.endsWith('.py'));
+      if (pyFile) {
+        return `${pyFile.replace('.py', '')}.handler`;
+      }
+      const jsFile = files.find((file: string) => file.endsWith('.js') || file.endsWith('.mjs'));
+      if (jsFile) {
+        return `${jsFile.replace('.js', '').replace('.mjs', '')}.handler`;
       }
     }
     
-    return runtime === lambda.Runtime.PYTHON_3_11 ? 'lambda_function.handler' : 'index.handler';
+    return 'index.handler';
   }
-}
+} 
